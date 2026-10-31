@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#131722">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<title>黃鼎彥的財富密碼</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#0d1017;color:#d1d4dc;font-family:system-ui,"PingFang TC","Noto Sans TC",sans-serif}
+.wrap{max-width:460px;margin:0 auto;padding:14px}
+h1{color:#ef9f27;font-size:20px;margin:4px 0 12px;font-weight:600}
+.card{background:#161b26;border-radius:14px;padding:12px;margin-bottom:10px}
+label{display:block;font-size:13px;color:#999;margin:10px 0 4px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #2a3040;background:#0d1017;color:#fff;font-size:16px}
+.btn{width:100%;padding:16px;border:0;border-radius:12px;font-size:17px;font-weight:600;color:#fff;cursor:pointer}
+.gold{background:#ef9f27;color:#2a1a00}.red{background:#e24b4a}.green{background:#1d9e75}.gray{background:#2a3040}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.sync{font-size:12px;color:#5dcaa5}
+.px{font-size:34px;font-weight:700;font-family:ui-monospace,monospace}
+.badge{padding:6px 14px;border-radius:8px;font-size:18px;font-weight:700;color:#fff}
+canvas{width:100%;height:240px;display:block}
+.sig{padding:10px;border-radius:10px;margin:8px 0;font-size:15px}
+.stat{background:#0d1017;border-radius:10px;padding:8px;text-align:center;font-size:12px;color:#999}
+.stat b{display:block;font-size:17px;color:#fff;margin-top:2px}
+.log{font-size:13px;line-height:1.8;max-height:180px;overflow:auto}
+.log div{border-bottom:1px solid #222836}
+.mu{color:#888;font-size:12px}
+.err{color:#f09595;font-size:14px;margin-top:8px;min-height:18px}
+.mask{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:9}
+.dlg{background:#161b26;border-radius:16px;padding:20px;width:86%;max-width:360px;text-align:center}
+.dlg p{font-size:18px;margin:6px 0 18px}
+.qty{display:flex;align-items:center;justify-content:center;gap:14px;font-size:22px}
+.qty button{width:44px;height:44px;border-radius:50%;border:0;background:#2a3040;color:#fff;font-size:22px}
+details summary{color:#999;font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<!-- 登入 -->
+<div id="login">
+  <h1>黃鼎彥的財富密碼</h1>
+  <div class="card">
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px">觀察模式</div>
+    <div class="mu" style="line-height:1.6">不用申請 API，直接看即時訊號與歷史紀錄。先觀察系統表現，放心再交易。</div>
+    <div style="height:10px"></div>
+    <button class="btn gray" id="guestBtn" style="border:1px solid #ef9f27;color:#ef9f27">先觀察（免申請）</button>
+    <div class="err" id="gerr"></div>
+  </div>
+  <div class="card">
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px">交易模式</div>
+    <div class="mu" id="demoTip" style="display:none;color:#ef9f27">目前是示範模式，直接按「登入交易」即可體驗</div>
+    <label>永豐 API Key</label><input id="k" autocomplete="off">
+    <label>永豐 Secret Key</label><input id="s" type="password" autocomplete="off">
+    <details><summary>要下單才需要填（只看盤可略過）</summary>
+      <label>身分證字號</label><input id="pid" autocomplete="off">
+      <label>憑證檔（.pfx）</label><input id="pfx" type="file" accept=".pfx">
+      <label>憑證密碼</label><input id="cp" type="password">
+    </details>
+    <label>這台裝置的名稱</label><input id="dev" placeholder="例如：我的手機">
+    <div style="height:14px"></div>
+    <button class="btn gold" id="go">登入交易</button>
+    <div class="err" id="err"></div>
+    <div class="mu">金鑰只用來連線你自己的永豐帳戶，不會被儲存。</div>
+  </div>
+</div>
+
+<!-- 主畫面 -->
+<div id="main" style="display:none">
+  <div class="top"><h1>黃鼎彥的財富密碼</h1><span class="sync" id="sync">● 連線中</span></div>
+  <div class="card">
+    <div class="top"><div><div class="mu" id="src">台指期 近月 · 即時</div><div class="px" id="px">—</div></div><span class="badge" id="st">—</span></div>
+    <canvas id="cv"></canvas>
+    <div class="sig" id="sig">等待訊號…</div>
+    <div class="row">
+      <div class="stat">前高<b id="hi" style="color:#f09595">—</b></div>
+      <div class="stat">前低<b id="lo" style="color:#5dcaa5">—</b></div>
+      <div class="stat posx">庫存<b id="pos">0</b></div>
+      <div class="stat posx">損益<b id="pnl">0</b></div>
+    </div>
+    <div class="mu posx" id="pinfo" style="margin-top:6px;text-align:center"></div>
+  </div>
+  <div class="card" id="guestBox" style="display:none;border:1px solid #ef9f27">
+    <div style="color:#ef9f27;font-weight:600">👀 觀察模式：只看訊號，不能下單</div>
+    <div class="mu" style="line-height:1.6;margin:4px 0 10px">想直接在這裡下單，請先向永豐申請 API，再用「交易模式」登入。訊號和觀察模式完全相同。</div>
+    <button class="btn gold" id="toTrade">我要交易（用 API 登入）</button>
+  </div>
+  <div class="card" id="tradeBox">
+    <div class="qty"><button id="m">−</button><span><span id="q">1</span> 口</span><button id="p">＋</button></div>
+    <div style="height:10px"></div>
+    <div class="row"><button class="btn red" data-a="buy" id="bBuy">買進做多</button><button class="btn green" data-a="sell" id="bSell">賣出做空</button></div>
+    <div style="height:8px"></div>
+    <button class="btn gold" data-a="close">全部平倉（退出）</button>
+  </div>
+  <div class="card"><div class="mu" id="logT">訊號與下單紀錄（所有裝置同步）</div><div class="log" id="log"></div></div>
+  <button class="btn gray" id="bell">開啟提示通知</button>
+  <div class="mu" style="margin:6px 4px 0;line-height:1.6">iPhone：先用 Safari 按「分享 → 加入主畫面」，從主畫面圖示打開後再按這個按鈕。開啟後，App 關掉、手機鎖屏也收得到訊號通知。</div>
+  <div style="height:8px"></div>
+  <button class="btn gray" id="out">登出</button>
+</div>
+</div>
+
+<div class="mask" id="mask"><div class="dlg"><p id="ask"></p>
+  <div class="row"><button class="btn gray" id="no">取消</button><button class="btn gold" id="yes">確定送出</button></div></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+let holdSig=0,token=store.get('tok'),ws,lastEvt=null,qty=1,pending=null,first=true;
+const f=v=>v==null?'—':(Math.round(v)||0).toLocaleString();
+function btnLabel(a,q){const opp=a==='buy'?q<0:q>0,h=Math.abs(q);
+  if(!opp)return a==='buy'?'買進做多':'賣出做空';
+  const side=a==='buy'?'空':'多',nw=a==='buy'?'多':'空';
+  return qty<=h?`${a==='buy'?'買進':'賣出'}（平${side} ${qty} 口）`:`${a==='buy'?'買進':'賣出'}（平${side}${h}＋新${nw}${qty-h}）`}
+let pos={qty:0},price=null;
+
+$('dev').value=store.get('dev')||'';
+
+$('go').onclick=async()=>{
+  $('err').textContent='登入中，約需10秒…';$('go').disabled=true;
+  const fd=new FormData();fd.append('api_key',$('k').value.trim());fd.append('secret_key',$('s').value.trim());
+  fd.append('person_id',$('pid').value.trim());fd.append('ca_pass',$('cp').value);
+  if($('pfx').files[0])fd.append('pfx',$('pfx').files[0]);
+  store.set('dev',$('dev').value.trim()||'裝置');
+  try{const r=await fetch('/api/login',{method:'POST',body:fd}),j=await r.json();
+    if(!r.ok)throw new Error(j.detail||'登入失敗');token=j.token;store.set('tok',token);start();}
+  catch(e){$('err').textContent=e.message}
+  $('go').disabled=false;
+};
+
+function start(){
+  $('login').style.display='none';$('main').style.display='block';
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?token='+token);
+  ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.error){logout();return}render(d)};
+  ws.onclose=()=>{$('sync').textContent='● 重新連線中';$('sync').style.color='#ef9f27';if(token)setTimeout(start,3000)};
+  ws.onopen=()=>{$('sync').style.color='#5dcaa5'};
+}
+function flash(t){holdSig=Date.now()+3000;$('sig').textContent=t;$('sig').style.background='#2a3040';$('sig').style.color='#fff'}
+function logout(){token=null;pos={qty:0};store.del('tok');try{ws.close()}catch(e){}$('main').style.display='none';$('login').style.display='block'}
+$('out').onclick=logout;
+
+function render(d){
+  if(d.swH!=null&&d.swL!=null&&d.swH<=d.swL){if(d.state===1||d.state===2)d.swH=null;else d.swL=null}
+  $('sync').textContent=d.guest?`● 觀察模式${d.demo?'（示範）':''}`:`● ${d.devices} 台同步中${d.demo?'（示範）':''}`;
+  $('px').textContent=f(d.price);
+  const L=d.state===1||d.state===2;
+  $('st').textContent=d.name;$('st').style.background=d.state===0?'#2a3040':L?'#e24b4a':'#1d9e75';
+  $('px').style.color=L?'#f09595':'#5dcaa5';
+  $('hi').textContent=f(d.swH);$('lo').textContent=f(d.swL);
+  $('pos').textContent=d.position.qty>0?`多${d.position.qty}`:d.position.qty<0?`空${-d.position.qty}`:'0';
+  pos=d.position;price=d.price;
+  const P=d.position,tot=(P.pnl||0)+(P.real||0);
+  $('pnl').textContent=(tot>0?'+':'')+f(tot);$('pnl').style.color=tot>=0?'#f09595':'#5dcaa5';
+  $('pinfo').textContent=(P.qty?`均價 ${f(P.avg)}｜未實現 ${f(P.pnl)}`:'')+(P.real!=null?`${P.qty?'｜':''}已實現 ${(P.real>0?'+':'')}${f(P.real)}`:'');
+  $('src').textContent=d.demo?'台指期 近月 · 示範行情（非真實報價）':'台指期 近月 · 即時';
+  $('bBuy').textContent=btnLabel('buy',P.qty);$('bSell').textContent=btnLabel('sell',P.qty);
+  $('tradeBox').style.display=d.can_trade?'block':'none';$('guestBox').style.display=d.guest?'block':'none';document.querySelectorAll('.posx').forEach(x=>x.style.display=d.guest?'none':'');$('logT').textContent=d.guest?'訊號紀錄':'訊號與下單紀錄（所有裝置同步）';
+  const ev=d.events[0];
+  if(ev&&Date.now()>holdSig){$('sig').textContent=`${ev.t}　${ev.msg}`;const l=ev.state===1||ev.state===2;$('sig').style.background=l?'#3a1d1d':'#16302a';$('sig').style.color=l?'#f09595':'#7ee2a0';
+    const key=ev.t+ev.msg;if(!first&&key!==lastEvt)notify(ev.msg);lastEvt=key;}
+  first=false;
+  const rows=[...d.orders.map(o=>({t:o.t,m:'🧾 '+o.msg})),...d.events.map(e=>({t:e.t,m:e.msg}))];
+  $('log').innerHTML=rows.slice(0,40).map(r=>`<div><span class="mu">${r.t}</span>　${r.m}</div>`).join('');
+  draw(d);
+}
+
+function draw(d){
+  const c=$('cv'),r=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;c.width=W*r;c.height=H*r;
+  const g=c.getContext('2d');g.scale(r,r);const B=d.bars.slice(-80);if(!B.length)return;
+  let mx=Math.max(...B.map(b=>b.h)),mn=Math.min(...B.map(b=>b.l));
+  [d.swH,d.swL].forEach(v=>{if(v!=null){mx=Math.max(mx,v);mn=Math.min(mn,v)}});
+  const pd=(mx-mn)*.08||5;mx+=pd;mn-=pd;const y=v=>(mx-v)/(mx-mn)*H,w=(W-44)/B.length;
+  B.forEach((b,i)=>{const x=i*w+w/2,col=b.c>=b.o?'#e24b4a':'#1d9e75';g.strokeStyle=col;g.beginPath();g.moveTo(x,y(b.h));g.lineTo(x,y(b.l));g.stroke();
+    g.fillStyle=col;g.fillRect(x-w*.35,Math.min(y(b.o),y(b.c)),w*.7,Math.max(1,Math.abs(y(b.o)-y(b.c))))});
+  const ln=(v,col,t)=>{if(v==null)return;g.setLineDash([5,4]);g.strokeStyle=col;g.beginPath();g.moveTo(0,y(v));g.lineTo(W-44,y(v));g.stroke();g.setLineDash([]);g.fillStyle=col;g.font='11px sans-serif';g.fillText(t,2,y(v)-3)};
+  ln(d.swH,'#f09595','前高 '+f(d.swH));ln(d.swL,'#5dcaa5','前低 '+f(d.swL));ln(d.anchor,'#ef9f27','觀察錨點');
+  g.fillStyle='#888';g.font='10px monospace';[mx-pd,mn+pd].forEach(v=>g.fillText(f(v),W-42,y(v)+4));
+}
+
+function notify(m){
+  try{navigator.vibrate&&navigator.vibrate([300,100,300])}catch(e){}
+  try{const a=new AudioContext(),o=a.createOscillator();o.frequency.value=880;o.connect(a.destination);o.start();o.stop(a.currentTime+.4)}catch(e){}
+}
+const u8=b=>{b=b.replace(/-/g,'+').replace(/_/g,'/');b+='='.repeat((4-b.length%4)%4);return Uint8Array.from(atob(b),c=>c.charCodeAt(0))};
+async function subscribePush(){
+  const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+  const {key}=await (await fetch('/api/vapid')).json();
+  let sub=await reg.pushManager.getSubscription();
+  if(sub&&sub.options&&sub.options.applicationServerKey){const a=new Uint8Array(sub.options.applicationServerKey),b=u8(key);if(a.length!==b.length||a.some((v,i)=>v!==b[i])){await sub.unsubscribe();sub=null}}
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
+  const fd=new FormData();fd.append('token',token);fd.append('sub',JSON.stringify(sub));
+  const r=await fetch('/api/subscribe',{method:'POST',body:fd});if(!r.ok)throw new Error('訂閱失敗');
+  const t=new FormData();t.append('token',token);fetch('/api/test_push',{method:'POST',body:t});
+}
+$('bell').onclick=async()=>{const B=$('bell');
+  try{
+    const ios=/iP(hone|ad|od)/.test(navigator.userAgent),standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+    if(ios&&!standalone){B.textContent='請先「分享 → 加入主畫面」，從主畫面圖示打開後再按';return}
+    if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){B.textContent='此瀏覽器不支援背景通知，畫面開著時會響聲提示';return}
+    const p=await Notification.requestPermission();
+    if(p==='denied'){B.textContent='通知被封鎖：請到瀏覽器設定改成「允許」';return}
+    if(p!=='granted'){B.textContent='沒有允許通知，請再按一次';return}
+    B.textContent='設定中…';await subscribePush();B.textContent='通知已開啟 ✓（App 關掉也收得到）';
+  }catch(e){B.textContent='通知設定失敗：'+e.message}};
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+$('m').onclick=()=>{qty=Math.max(1,qty-1);$('q').textContent=qty;$('bBuy').textContent=btnLabel('buy',pos.qty);$('bSell').textContent=btnLabel('sell',pos.qty)};
+$('p').onclick=()=>{qty=Math.min(10,qty+1);$('q').textContent=qty;$('bBuy').textContent=btnLabel('buy',pos.qty);$('bSell').textContent=btnLabel('sell',pos.qty)};
+document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{pending=b.dataset.a;
+  if(pending==='close'&&!pos.qty){flash('⚠ 目前沒有庫存');return}
+  const nm={buy:$('bBuy').textContent,sell:$('bSell').textContent,close:'全部平倉'}[pending];
+  const plain=nm==='買進做多'||nm==='賣出做空';
+  $('ask').textContent=`確定 市價${nm}${plain?' '+qty+' 口':''}？\n目前價格約 ${f(price)}，實際以成交價為準`;$('ask').style.whiteSpace='pre-line';$('mask').style.display='flex'});
+$('no').onclick=()=>{$('mask').style.display='none'};
+$('yes').onclick=async()=>{$('mask').style.display='none';
+  const fd=new FormData();fd.append('token',token);fd.append('action',pending);fd.append('qty',qty);fd.append('device',store.get('dev')||'');
+  try{const r=await fetch('/api/order',{method:'POST',body:fd}),j=await r.json();if(!r.ok)throw new Error(j.detail);flash('✅ '+j.msg)}
+  catch(e){flash('⚠ '+e.message)}};
+
+fetch('/api/mode').then(r=>r.json()).then(j=>{if(j.demo)$('demoTip').style.display='block'}).catch(()=>{});
+if(token)start();
+
+$('guestBtn').onclick=async()=>{$('gerr').textContent='連線中…';
+  try{const r=await fetch('/api/guest',{method:'POST'}),j=await r.json();if(!r.ok)throw new Error(j.detail);
+    token=j.token;store.set('tok',token);$('gerr').textContent='';start()}catch(e){$('gerr').textContent=e.message}};
+$('toTrade').onclick=()=>logout();
+</script>
+</body>
+</html>
